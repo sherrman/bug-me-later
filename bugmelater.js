@@ -345,12 +345,12 @@ function isValidTimeLabel(labelName,snoozeLength) {
 
 function getDateFromDDMMYYLabel(labelName,snoozeLength) {
     var labelLength = labelName.length;
-    var dateLength = USDATE_LABEL.length + 2;
+    var dateLength = INTDATE_LABEL.length + 2;
     var ddmmyyLength = labelLength - (snoozeLength+dateLength);
     var ddmmyy = "";
     
     if ( labelLength == snoozeLength + dateLength + 6) { 
-        if (labelName.substr(snoozeLength,dateLength) == "/"+USDATE_LABEL+"/") {
+        if (labelName.substr(snoozeLength,dateLength) == "/"+INTDATE_LABEL+"/") {
             ddmmyy = labelName.substr(snoozeLength + dateLength,6);
             var isValid = true;
             for (var i = 0; i<6; i++) {
@@ -381,7 +381,7 @@ function getDateFromMMDDYYLabel(labelName,snoozeLength) {
     var mmddyy = "";
     
     if ( labelLength == snoozeLength + dateLength + 6) { 
-        if (labelName.substr(snoozeLength,dateLength) == "/"+INTDATE_LABEL+"/") {
+        if (labelName.substr(snoozeLength,dateLength) == "/"+USDATE_LABEL+"/") {
             mmddyy = labelName.substr(snoozeLength + dateLength,6);
             var isValid = true;
             for (var i = 0; i<6; i++) {
