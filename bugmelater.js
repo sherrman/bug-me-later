@@ -197,7 +197,7 @@ function processLabelWith(label, fn) {
     var pg;
     while (!pg || pg.length > 0) {
         pg = label.getThreads(0, 100); 
-        for (var i=0; i<page.length; i++) {
+        for (var i=0; i<pg.length; i++) {
             fn(pg[i], label);
         }
     }
@@ -206,28 +206,30 @@ function processLabelWith(label, fn) {
 function relabelDateDeferal(label) {
     var today = (new Date()).getTime();
     var additional = 24*60*60*1000; // milliseconds in a day
-    if (labelName == INAMONTH_LABEL) {
+    if (endsWith(label.getName(), INAMONTH_LABEL)) {
         additional *= 30;
-    } else if (labelName == INNINTY_LABEL) {
+    } else if (endsWith(label.getName(), INNINTY_LABEL)) {
         additional *= 90;
     }
     var future = SNOOZE_LABEL + '/' + USDATE_LABEL + '/' + 
         Utilities.formatDate(new Date(today + additional), Session.getTimeZone(), "MMddyy");
     var futureLabel = GmailApp.getUserLabelByName(futureLabel);
-    if (!futureLabel) {
-        futureLabel = GmailApp.createLabel(future);
-    }        
     
     processLabelWith(label, function(thread, oldLabel) {
-        thread.removeLabel(oldLabel);
+        if (!futureLabel) {
+            Logger.log("creating date label,", future);
+            futureLabel = GmailApp.createLabel(future);
+        }
+        Logger.log("Moving to date snooze:", thread.getFirstMessageSubject());
         thread.addLabel(futureLabel);
+        thread.removeLabel(oldLabel);
     });
 }
 
 function relabelDeferred(label) {
     var labelName = label.getName();
-    if (labelName == INAMONTH_LABEL || labelName == INNINTY_LABEL) {
-        relabelDateDeferal(label, today);
+    if (endsWith(labelName, INAMONTH_LABEL) || endsWith(labelName, INNINTY_LABEL)) {
+        relabelDateDeferal(label);
     } else {
         processInvalidLabel(label);
     }
@@ -253,6 +255,10 @@ function processInvalidLabel(label) {
             }  
         }
     }
+}
+
+function isDefer(labelName) {
+    return endsWith(labelName, INAMONTH_LABEL) || endsWith(labelName, INNINTY_LABEL);
 }
 
 function todayCanBeProcessed(newDay) {
@@ -295,7 +301,6 @@ function dateCanBeProcessed(theDate,today) {
 
 
 function getTimeFromLabel(labelName,snoozeLength) {
-    
     var labelLength = labelName.length;
     var timeLabelLength = TIME_LABEL.length + 2;
     var timeLength = labelLength - (snoozeLength+timeLabelLength);
@@ -500,4 +505,9 @@ function initialiseProperty(key,initialValue) {
     if (value === null || value === "") {
         UserProperties.setProperty(key, initialValue);
     }
+}
+
+function endsWith(bigString, searchTerm)
+{
+    return bigString.indexOf(searchTerm, bigString.length - searchTerm.length) !== -1;
 }
