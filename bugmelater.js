@@ -38,8 +38,8 @@ var INAMONTH_LABEL = "8 - In a month";
 var INNINTY_LABEL = "9 - In 3 months";
 var LATERON_LABEL = "A - Few hours";
 var TIME_LABEL = "Y - time_hhmm";
-var USDATE_LABEL = "Z - date_ddmmyy";
-var INTDATE_LABEL = "Z - date_mmddyy";
+var INTDATE_LABEL = "Z - date_ddmmyy";
+var USDATE_LABEL = "Z - date_mmddyy";
 
 var snoozeErrorLabel = null;
 var unsnoozeLabel = null;
