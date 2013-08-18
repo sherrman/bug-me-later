@@ -108,8 +108,7 @@ function moveSnoozes() {
             if (labelName.substr(0,snoozeLength) == SNOOZE_LABEL) {
                 if (isDayLabel(labelName)) {
                     if (labelName.substr(snoozeLength + 5) === today
-                        && todayCanBeProcessed(today) 
-                        && timeCanBeProcessed(TIME_A_DAY_STARTS,now)) 
+                        && todayCanBeProcessed(today, now))
                     {
                         processLabel(labels[i]);
                         UserProperties.setProperty(KEY_CURRENT_DAY, today);
@@ -117,7 +116,7 @@ function moveSnoozes() {
                 }
                 
                 else if(labelName.substr(snoozeLength) == "/0 - Tomorrow") {
-                    if (tomorrowCanBeProcessed(todayIso) && timeCanBeProcessed(TIME_A_DAY_STARTS,now)) {
+                    if (tomorrowCanBeProcessed(todayIso, now)) {
                         processLabel(labels[i]);
                         UserProperties.setProperty(KEY_TOMORROW_DATE, todayIso);
                     }  
@@ -137,14 +136,14 @@ function moveSnoozes() {
                 }
                 
                 else if(isValidDDMMYYLabel(labelName,snoozeLength)) {
-                    if (dateCanBeProcessed(getDateFromDDMMYYLabel(labelName,snoozeLength),todayIso) && timeCanBeProcessed(TIME_A_DAY_STARTS,now)) {
+                    if (dateCanBeProcessed(getDateFromDDMMYYLabel(labelName,snoozeLength),todayIso,now)) {
                         processLabel(labels[i]);
                         GmailApp.deleteLabel(labels[i]);
                     }
                 }
                 
-                else if(isValidMMDDYYLabel(labelName,snoozeLength) && timeCanBeProcessed(TIME_A_DAY_STARTS,now)) {
-                    if (dateCanBeProcessed(getDateFromMMDDYYLabel(labelName,snoozeLength),todayIso)) {
+                else if(isValidMMDDYYLabel(labelName,snoozeLength)) {
+                    if (dateCanBeProcessed(getDateFromMMDDYYLabel(labelName,snoozeLength),todayIso,now)) {
                         processLabel(labels[i]);
                         GmailApp.deleteLabel(labels[i]);
                     }
@@ -212,15 +211,13 @@ function relabelDateDeferal(label) {
         additional *= 90;
     }
     var future = SNOOZE_LABEL + '/' + USDATE_LABEL + '/' + 
-        Utilities.formatDate(new Date(today + additional), Session.getTimeZone(), "MMddyy");
+        Utilities.formatDate(new Date(today + additional), getUsersTimeZone(), "MMddyy");
     var futureLabel = GmailApp.getUserLabelByName(futureLabel);
     
     processLabelWith(label, function(thread, oldLabel) {
         if (!futureLabel) {
-            Logger.log("creating date label,", future);
             futureLabel = GmailApp.createLabel(future);
         }
-        Logger.log("Moving to date snooze:", thread.getFirstMessageSubject());
         thread.addLabel(futureLabel);
         thread.removeLabel(oldLabel);
     });
@@ -261,14 +258,14 @@ function isDefer(labelName) {
     return endsWith(labelName, INAMONTH_LABEL) || endsWith(labelName, INNINTY_LABEL);
 }
 
-function todayCanBeProcessed(newDay) {
+function todayCanBeProcessed(newDay, now) {
     var oldDay = UserProperties.getProperty(KEY_CURRENT_DAY);
-    return oldDay !== newDay;
+    return oldDay !== newDay && now.substr(11,4) > TIME_A_DAY_STARTS;
 }
 
-function tomorrowCanBeProcessed(newIsoDate) {
+function tomorrowCanBeProcessed(newIsoDate, now) {
     var oldDate = UserProperties.getProperty(KEY_TOMORROW_DATE);
-    return oldDate !== newIsoDate;
+    return oldDate !== newIsoDate && now.substr(11,4) > TIME_A_DAY_STARTS;
 }
 
 function timeCanBeProcessed(time,now) {
@@ -295,8 +292,8 @@ function timeCanBeProcessed(time,now) {
     return false;
 }  
 
-function dateCanBeProcessed(theDate,today) {
-    return today >= theDate;
+function dateCanBeProcessed(theDate,today, now) {
+    return today >= theDate && now.substr(11,4) > TIME_A_DAY_STARTS;
 }
 
 
