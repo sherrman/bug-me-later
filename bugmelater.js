@@ -34,15 +34,19 @@ var THURSDAY_LABEL = "4 - Thursday";
 var FRIDAY_LABEL = "5 - Friday";
 var SATURDAY_LABEL = "6 - Saturday";
 var SUNDAY_LABEL = "7 - Sunday";
-var INAMONTH_LABEL = "8 - In a month";
-var INNINTY_LABEL = "9 - In 3 months";
-var LATERON_LABEL = "A - Few hours";
+var TWOWEEKS_LABEL = "10.2w - In 2 weeks";
+var INAMONTH_LABEL = "20.1m - In a month";
+var INNINTY_LABEL = "21.3m - In 3 months";
+var LATERON_LABEL = "30.3h - Few hours";
 var TIME_LABEL = "Y - time_hhmm";
 var INTDATE_LABEL = "Z - date_ddmmyy";
 var USDATE_LABEL = "Z - date_mmddyy";
 
 var snoozeErrorLabel = null;
 var unsnoozeLabel = null;
+
+// Relative deferred messages all begin with two digit numbers
+var deferRegex = /\/([0-9]{2}).([0-9]+)([dhwm]) /i;
 
 
 // --------------------------------------------------------------------------
@@ -68,6 +72,7 @@ function setupLabels() {
     GmailApp.createLabel(SNOOZE_LABEL + "/" + FRIDAY_LABEL);
     GmailApp.createLabel(SNOOZE_LABEL + "/" + SATURDAY_LABEL);
     GmailApp.createLabel(SNOOZE_LABEL + "/" + SUNDAY_LABEL);
+    GmailApp.createLabel(SNOOZE_LABEL + "/" + TWOWEEKS_LABEL);
     GmailApp.createLabel(SNOOZE_LABEL + "/" + INAMONTH_LABEL);
     GmailApp.createLabel(SNOOZE_LABEL + "/" + INNINTY_LABEL);
     GmailApp.createLabel(SNOOZE_LABEL + "/" + LATERON_LABEL);
@@ -202,31 +207,47 @@ function processLabelWith(label, fn) {
     }
 }
 
-function relabelDateDeferal(label) {
-    var today = (new Date()).getTime();
-    var additional = 24*60*60*1000; // milliseconds in a day
-    if (endsWith(label.getName(), INAMONTH_LABEL)) {
-        additional *= 30;
-    } else if (endsWith(label.getName(), INNINTY_LABEL)) {
-        additional *= 90;
-    }
-    var future = SNOOZE_LABEL + '/' + USDATE_LABEL + '/' + 
-        Utilities.formatDate(new Date(today + additional), getUsersTimeZone(), "MMddyy");
+function relabel(oldLabel, newLabel) {
     var futureLabel = GmailApp.getUserLabelByName(futureLabel);
-    
-    processLabelWith(label, function(thread, oldLabel) {
+    processLabelWith(oldLabel, function(thread, oldlbl) {
         if (!futureLabel) {
-            futureLabel = GmailApp.createLabel(future);
+            futureLabel = GmailApp.createLabel(newLabel);
         }
         thread.addLabel(futureLabel);
-        thread.removeLabel(oldLabel);
-    });
+        thread.removeLabel(oldlbl);
+    });    
 }
 
+function relabelDateDeferral(label, days) {
+    var additional = days * 24*60*60*1000; // milliseconds in a day
+    var future = SNOOZE_LABEL + '/' + USDATE_LABEL + '/' + 
+        Utilities.formatDate(new Date((new Date()).getTime() + additional),
+                             getUsersTimeZone(), "MMddyy");
+    relabel(label, future);
+}
+
+function relabelHourlyDeferral(label, hours) {
+    var additional = hours * 60*60*1000; // milliseconds in an hour
+    var future = SNOOZE_LABEL + '/' + TIME_LABEL + '/' + 
+        Utilities.formatDate(new Date((new Date()).getTime() + additional),
+                             getUsersTimeZone(), "HHmm");
+    relabel(label, future);
+}
+
+var dayConversionTable = {'d':1, 'w':7, 'm':30};
 function relabelDeferred(label) {
     var labelName = label.getName();
-    if (endsWith(labelName, INAMONTH_LABEL) || endsWith(labelName, INNINTY_LABEL)) {
-        relabelDateDeferal(label);
+    var matches = deferRegex.exec(labelName);
+    var time, unit;
+    if (matches) {
+        time = parseInt(matches[2]);
+        unit = matches[3].toLowerCase();
+        if (dayConversionTable.hasOwnProperty(unit)) {
+            time = time * dayConversionTable[unit];
+            relabelDateDeferral(label, time);
+        } else {
+            relabelHourlyDeferral(label, time);
+        }
     } else {
         processInvalidLabel(label);
     }
@@ -255,7 +276,7 @@ function processInvalidLabel(label) {
 }
 
 function isDefer(labelName) {
-    return endsWith(labelName, INAMONTH_LABEL) || endsWith(labelName, INNINTY_LABEL);
+    return deferRegex.test(labelName);
 }
 
 function todayCanBeProcessed(newDay, now) {
@@ -301,7 +322,8 @@ function getTimeFromLabel(labelName,snoozeLength) {
     var labelLength = labelName.length;
     var timeLabelLength = TIME_LABEL.length + 2;
     var timeLength = labelLength - (snoozeLength+timeLabelLength);
-    var time = "";
+    var time = "",
+        isValid, hours, minutes;
     
     if (timeLength == 3 || timeLength == 4) { // Length of <hmm> or <hhmm>, respectively
         if (labelName.substr(snoozeLength,timeLabelLength) == "/"+TIME_LABEL+"/") {
@@ -309,15 +331,15 @@ function getTimeFromLabel(labelName,snoozeLength) {
             if (timeLength == 3) {
                 time = "0" + time;
             }
-            var isValid = true;
+            isValid = true;
             for (var i = 0; i<4; i++) {
                 if (isNaN(time.substr(i,1))) {
                     isValid = false;
                 }    
             }  
             if (isValid) {
-                var hours = parseInt(time.substr(0,2),10);
-                var minutes = parseInt(time.substr(2,2),10);  
+                hours = parseInt(time.substr(0,2),10);
+                minutes = parseInt(time.substr(2,2),10);  
                 if (hours < 0 || hours > 23) {
                     isValid = false;
                 }  
@@ -504,7 +526,6 @@ function initialiseProperty(key,initialValue) {
     }
 }
 
-function endsWith(bigString, searchTerm)
-{
+function endsWith(bigString, searchTerm) {
     return bigString.indexOf(searchTerm, bigString.length - searchTerm.length) !== -1;
 }
